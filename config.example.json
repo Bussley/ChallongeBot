@@ -1,0 +1,5 @@
+{
+  "discordToken": "PASTE_YOUR_DISCORD_BOT_TOKEN_HERE",
+  "challongeApiKey": "PASTE_YOUR_CHALLONGE_API_KEY_HERE",
+  "timeZone": "America/Los_Angeles"
+}
