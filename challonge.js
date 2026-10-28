@@ -14,18 +14,30 @@ class ChallongeError extends Error {
 	}
 }
 
-// Tournament names are typed with underscores in place of spaces
+// Tournament names may be typed with underscores in place of spaces
 // ("Brawlhalla_Tourney"), so compare names case-insensitively with
 // underscores and spaces treated as the same thing.
 function normalizeName(name) {
 	return String(name).replace(/_/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function randomUrl() {
-	const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-	let id = 'cb_';
-	for (let i = 0; i < 10; i++) id += chars[Math.floor(Math.random() * chars.length)];
-	return id;
+// "https://challonge.com/abc123" -> "abc123", "https://myorg.challonge.com/abc123" -> "myorg-abc123".
+// Returns null if the text isn't a Challonge link.
+function identifierFromLink(text) {
+	let url;
+	try {
+		url = new URL(String(text).trim().replace(/^<|>$/g, ''));
+	} catch {
+		return null;
+	}
+	const host = url.hostname.toLowerCase();
+	if (host !== 'challonge.com' && !host.endsWith('.challonge.com')) return null;
+	const parts = url.pathname.split('/').filter(Boolean);
+	// Skip a language prefix like /en/ or /de/.
+	if (parts.length > 1 && /^[a-z]{2}$/.test(parts[0])) parts.shift();
+	if (parts.length === 0) return null;
+	const sub = host.replace(/\.?challonge\.com$/, '').replace(/^www$/, '');
+	return sub ? `${sub}-${parts[0]}` : parts[0];
 }
 
 class Challonge {
@@ -83,46 +95,33 @@ class Challonge {
 		return (data || []).map(t => t.tournament);
 	}
 
-	// Finds a tournament on this Challonge account by name. Returns null if none match.
-	async findTournament(name) {
-		const wanted = normalizeName(name);
-		const matches = (await this.listTournaments()).filter(t => normalizeName(t.name) === wanted);
-		if (matches.length === 0) return null;
-		// If there are several with the same name, use the newest one.
-		matches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-		return matches[0];
+	// Finds a tournament by name on this Challonge account, or by its link
+	// (https://challonge.com/abc123) or URL code (abc123). Returns null if not found.
+	async findTournament(nameOrLink) {
+		const identifier = identifierFromLink(nameOrLink);
+		if (!identifier) {
+			const wanted = normalizeName(nameOrLink);
+			const matches = (await this.listTournaments()).filter(t => normalizeName(t.name) === wanted);
+			if (matches.length > 0) {
+				// If there are several with the same name, use the newest one.
+				matches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+				return matches[0];
+			}
+		}
+		const code = identifier || String(nameOrLink).trim();
+		if (!/^[A-Za-z0-9_-]+$/.test(code)) return null;
+		try {
+			const data = await this.request('GET', `tournaments/${code}`);
+			return data.tournament;
+		} catch (err) {
+			if (err.status === 404) return null;
+			throw err;
+		}
 	}
 
 	async getTournament(tournament) {
 		const data = await this.request('GET', `tournaments/${tournament.id}`);
 		return data.tournament;
-	}
-
-	async createTournament({ name, game, startAt, signupCap }) {
-		const data = await this.request('POST', 'tournaments', {
-			'tournament[name]': name,
-			'tournament[url]': randomUrl(),
-			'tournament[game_name]': game,
-			'tournament[start_at]': startAt ? startAt.toISOString() : '',
-			'tournament[signup_cap]': signupCap ?? '',
-			'tournament[open_signup]': 'false',
-		});
-		return data.tournament;
-	}
-
-	// fields: { name, game, startAt (Date), signupCap (number or null) } — any subset.
-	async updateTournament(tournament, fields) {
-		const params = {};
-		if ('name' in fields) params['tournament[name]'] = fields.name;
-		if ('game' in fields) params['tournament[game_name]'] = fields.game;
-		if ('startAt' in fields) params['tournament[start_at]'] = fields.startAt.toISOString();
-		if ('signupCap' in fields) params['tournament[signup_cap]'] = fields.signupCap ?? '';
-		const data = await this.request('PUT', `tournaments/${tournament.id}`, params);
-		return data.tournament;
-	}
-
-	async deleteTournament(tournament) {
-		await this.request('DELETE', `tournaments/${tournament.id}`);
 	}
 
 	async startTournament(tournament) {
@@ -140,24 +139,10 @@ class Challonge {
 	}
 
 	// ---- Participants ----
-	// Each participant's Discord user ID is stored in Challonge's "misc" field,
-	// so the bot can find and @mention them later.
 
 	async listParticipants(tournament) {
 		const data = await this.request('GET', `tournaments/${tournament.id}/participants`);
 		return (data || []).map(p => p.participant);
-	}
-
-	async addParticipant(tournament, name, discordId) {
-		const data = await this.request('POST', `tournaments/${tournament.id}/participants`, {
-			'participant[name]': name,
-			'participant[misc]': discordId,
-		});
-		return data.participant;
-	}
-
-	async removeParticipant(tournament, participant) {
-		await this.request('DELETE', `tournaments/${tournament.id}/participants/${participant.id}`);
 	}
 
 	// ---- Matches ----
@@ -175,4 +160,4 @@ class Challonge {
 	}
 }
 
-module.exports = { Challonge, ChallongeError, normalizeName };
+module.exports = { Challonge, ChallongeError, normalizeName, identifierFromLink };
