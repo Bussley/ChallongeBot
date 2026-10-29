@@ -2,9 +2,8 @@
 
 // Vote brackets: run an existing Challonge bracket as a series of Discord polls.
 //
-// Every cycle (24 hours by default) the bot posts a poll for the next open match.
+// Every 24 hours the bot posts a poll for the next open match.
 // When the poll closes, whichever participant got more votes wins the match on
-// Challonge (the vote counts become the score), and the next poll goes up.
 // Ties go to the better (lower-numbered) seed.
 //
 // Progress is saved to vote-state.json so a restart picks up where it left off.
@@ -72,7 +71,7 @@ function makeVoting({ client, challonge, statePath, UserError, canManage, now = 
 		const p1 = byId.get(match.player1_id);
 		const p2 = byId.get(match.player2_id);
 		const message = await channel.send({
-			content: `🗳️ **${bracket.name}** — Match ${matchNumber(match)}. Voting closes <t:${Math.floor((now() + bracket.hours * 3600e3) / 1000)}:R>.`,
+			content: `@everyone **${bracket.name}** — Match ${matchNumber(match)}. Voting closes <t:${Math.floor((now() + bracket.hours * 3600e3) / 1000)}:R>.`,
 			poll: {
 				question: { text: `Match ${matchNumber(match)}: which is better?` },
 				answers: [{ text: answerText(p1.name) }, { text: answerText(p2.name) }],
@@ -151,7 +150,7 @@ function makeVoting({ client, challonge, statePath, UserError, canManage, now = 
 		const scores = match.player1_id === id1 ? `${votes[0]}-${votes[1]}` : `${votes[1]}-${votes[0]}`;
 		await challonge.updateMatch(tournament, match, scores, winner.id);
 		const [wv, lv] = winner === p1 ? votes : [votes[1], votes[0]];
-		await channel.send(`✅ **${winner.name}** beat **${loser.name}** ${wv}–${lv}${note} and moves on in **${bracket.name}**!`);
+		await channel.send(`**${winner.name}** beat **${loser.name}** ${wv}–${lv}${note} and moves on in **${bracket.name}**!`);
 
 		await postNext(bracket);
 		return true;

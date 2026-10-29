@@ -1,8 +1,6 @@
 'use strict';
 
 // Small wrapper around the Challonge v1 REST API (https://api.challonge.com/v1).
-// Every method returns a Promise and throws a ChallongeError when Challonge
-// rejects the request, so the bot can tell the user what went wrong.
 
 const BASE_URL = 'https://api.challonge.com/v1';
 
@@ -14,14 +12,11 @@ class ChallongeError extends Error {
 	}
 }
 
-// Tournament names may be typed with underscores in place of spaces
-// ("Brawlhalla_Tourney"), so compare names case-insensitively with
 // underscores and spaces treated as the same thing.
 function normalizeName(name) {
 	return String(name).replace(/_/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-// "https://challonge.com/abc123" -> "abc123", "https://myorg.challonge.com/abc123" -> "myorg-abc123".
 // Returns null if the text isn't a Challonge link.
 function identifierFromLink(text) {
 	let url;
@@ -96,7 +91,6 @@ class Challonge {
 	}
 
 	// Finds a tournament by name on this Challonge account, or by its link
-	// (https://challonge.com/abc123) or URL code (abc123). Returns null if not found.
 	async findTournament(nameOrLink) {
 		const identifier = identifierFromLink(nameOrLink);
 		if (!identifier) {

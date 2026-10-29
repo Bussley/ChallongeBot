@@ -1,14 +1,5 @@
 'use strict';
 
-// Challonge Vote Bracket Bot — originally by Darkspine77, rebuilt for discord.js v14.
-//
-// Runs an existing Challonge bracket as a series of Discord polls: one match at a
-// time, the most votes wins and advances on Challonge.
-//
-// Setup: copy config.example.json to config.json and fill in your Discord bot
-// token and Challonge API key (or set the DISCORD_TOKEN / CHALLONGE_API_KEY
-// environment variables instead), then run `npm install` and `npm start`.
-
 const fs = require('fs');
 const path = require('path');
 const {
@@ -19,9 +10,8 @@ const { makeVoting } = require('./voting');
 
 const PREFIX = 'c!';
 const MANAGER_ROLE = 'Tournament Manager';
-const COMMAND_CHANNEL = 'tournament-commands';
+const COMMAND_CHANNEL = 'tournament';
 const ROLE_COLOR = 0xFF7324;
-// View Channels, Send Messages, Embed Links, Read Message History, Manage Roles, Manage Channels, Create Polls
 const INVITE_PERMISSIONS = '562950221941776';
 
 // ---------------------------------------------------------------- config
@@ -60,7 +50,7 @@ function canManage(member) {
 	return member.roles.cache.some(r => r.name === MANAGER_ROLE) || member.permissions.has(PermissionFlagsBits.Administrator);
 }
 
-// Makes sure the Tournament Manager role and #tournament-commands channel exist.
+// Makes sure the Tournament Manager role and #tournament channel exist.
 async function ensureSetup(guild) {
 	await guild.roles.fetch();
 	await guild.channels.fetch();
@@ -95,7 +85,7 @@ function helpEmbed() {
 		)
 		.addFields(
 			{ name: 'c!vote start (Name or Challonge link) [hours] [#channel]',
-				value: 'Start running a bracket as polls (default 24-hour polls, posted in this channel).\n`c!vote start https://challonge.com/abc123 24 #polls`' },
+				value: 'Start running a bracket as polls (default 24-hour polls, posted in this channel).\n`c!vote start https://challonge.com/abc123 24`' },
 			{ name: 'c!vote status', value: 'List running vote brackets and when each poll closes.' },
 			{ name: 'c!vote next (Name)', value: 'Close the current poll now and move on to the next match.' },
 			{ name: 'c!vote stop (Name)', value: 'Stop posting polls. The open poll isn\'t counted.' },
